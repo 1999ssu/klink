@@ -1,6 +1,6 @@
 @import "tailwindcss";
-@tailwind utilities;
-
+/* @tailwind utilities; */
+@config "../../tailwind.config.ts";
 :root {
   --color-cream: #f5f6dc;
   --color-primary: #852623;
