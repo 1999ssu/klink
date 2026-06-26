@@ -1,7 +1,7 @@
-// src/app/(customer)/products/page.tsx
+// 변경 후
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   collection,
@@ -18,7 +18,8 @@ import ProductCardSkeleton from "@/components/customer/product/ProductCardSkelet
 import ProductFilters from "@/components/customer/product/ProductFilters";
 import { SlidersHorizontal, X } from "lucide-react";
 
-export default function ProductsPage() {
+// useSearchParams 쓰는 실제 내용을 별도 컴포넌트로 분리
+function ProductsContent() {
   const searchParams = useSearchParams();
   const category = searchParams.get("category") as ProductCategory | null;
   const subcategory = searchParams.get(
@@ -28,14 +29,12 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
-
-  // 정렬 옵션
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">(
     "newest",
   );
 
   useEffect(() => {
-    let cancelled = false; // 언마운트 시 setState 방지 (클린업)
+    let cancelled = false;
 
     const fetchProducts = async () => {
       setLoading(true);
@@ -57,7 +56,7 @@ export default function ProductsPage() {
         const q = query(collection(db, "products"), ...constraints);
         const snapshot = await getDocs(q);
 
-        if (cancelled) return; // 언마운트됐으면 setState 스킵
+        if (cancelled) return;
 
         const data = snapshot.docs.map((doc) => ({
           id: doc.id,
@@ -75,13 +74,11 @@ export default function ProductsPage() {
     };
 
     fetchProducts();
-
     return () => {
-      cancelled = true; // 클린업: 언마운트 or deps 변경 시
+      cancelled = true;
     };
-  }, [category, subcategory, sortBy]); // useCallback 제거하고 deps 직접 명시
+  }, [category, subcategory, sortBy]);
 
-  // 페이지 타이틀
   const pageTitle = subcategory
     ? `${category?.toUpperCase()} / ${subcategory.toUpperCase()}`
     : category
@@ -90,7 +87,6 @@ export default function ProductsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-10">
-      {/* 페이지 헤더 */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-display text-3xl font-bold text-gray-900">
@@ -104,11 +100,10 @@ export default function ProductsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* 정렬 */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            className="text-sm border border-gray-300 px-3 py-2 bg-white focus:outline-none 
+            className="text-sm border border-gray-300 px-3 py-2 bg-white focus:outline-none
                        focus:border-primary cursor-pointer"
           >
             <option value="newest">Newest</option>
@@ -116,10 +111,9 @@ export default function ProductsPage() {
             <option value="price_desc">Price: High to Low</option>
           </select>
 
-          {/* 필터 토글 (모바일) */}
           <button
             onClick={() => setShowFilters((prev) => !prev)}
-            className="md:hidden flex items-center gap-1.5 text-sm border border-gray-300 
+            className="md:hidden flex items-center gap-1.5 text-sm border border-gray-300
                        px-3 py-2 hover:border-primary transition-colors"
           >
             {showFilters ? <X size={14} /> : <SlidersHorizontal size={14} />}
@@ -129,12 +123,8 @@ export default function ProductsPage() {
       </div>
 
       <div className="flex gap-8">
-        {/* 필터 사이드바 */}
         <aside
-          className={`
-          md:block w-56 flex-shrink-0
-          ${showFilters ? "block" : "hidden"}
-        `}
+          className={`md:block w-56 flex-shrink-0 ${showFilters ? "block" : "hidden"}`}
         >
           <ProductFilters
             currentCategory={category}
@@ -142,7 +132,6 @@ export default function ProductsPage() {
           />
         </aside>
 
-        {/* 상품 그리드 */}
         <div className="flex-1">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {loading
@@ -165,5 +154,24 @@ export default function ProductsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 바깥 페이지에서 Suspense로 감싸기
+export default function ProductsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-7xl mx-auto px-4 py-10">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <ProductCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
+      }
+    >
+      <ProductsContent />
+    </Suspense>
   );
 }
