@@ -9,7 +9,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 // Next.js가 body를 파싱하지 않도록 설정 (Stripe 서명 검증에 필요)
-export const config = { api: { bodyParser: false } };
+// export const config = { api: { bodyParser: false } };
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
