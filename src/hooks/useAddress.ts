@@ -14,20 +14,24 @@ export function useAddress() {
   const [loading, setLoading] = useState(false);
 
   // 주소 추가
+  // 변경 후 — user.addresses가 없을 때 빈 배열로 처리
   const addAddress = async (data: Omit<Address, "id">) => {
     if (!user) return;
     setLoading(true);
     try {
       const newAddress: Address = { ...data, id: uuidv4() };
 
-      // 첫 주소면 자동으로 default
-      if (user.addresses.length === 0) newAddress.isDefault = true;
+      // user.addresses가 undefined일 수 있으므로 기본값 처리
+      const currentAddresses = user.addresses ?? [];
 
-      // isDefault true면 기존 default 해제
-      let updatedAddresses = user.addresses.map((a) =>
-        data.isDefault ? { ...a, isDefault: false } : a,
-      );
-      updatedAddresses = [...updatedAddresses, newAddress];
+      if (currentAddresses.length === 0) newAddress.isDefault = true;
+
+      const updatedAddresses = [
+        ...currentAddresses.map((a) =>
+          data.isDefault ? { ...a, isDefault: false } : a,
+        ),
+        newAddress,
+      ];
 
       await updateDoc(doc(db, "users", user.id), {
         addresses: updatedAddresses,

@@ -1,7 +1,7 @@
 // src/components/customer/checkout/AddressPopup.tsx
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,10 +35,25 @@ export default function AddressPopup({ onClose, onSaved }: Props) {
   const { addAddress, loading } = useAddress();
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
 
-  const { isLoaded } = useLoadScript({
+  const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
     libraries,
   });
+
+  const [placesReady, setPlacesReady] = useState(false);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    // 다음 틱으로 미뤄서 "동기적 setState 직접 호출"이 아니게 만듦
+    const timer = setTimeout(() => {
+      if (window.google?.maps?.places) {
+        setPlacesReady(true);
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [isLoaded]);
 
   const {
     register,
@@ -74,9 +89,9 @@ export default function AddressPopup({ onClose, onSaved }: Props) {
   const onSubmit = async (data: AddressForm) => {
     const saved = await addAddress(data);
     if (saved) onSaved(saved);
+
     onClose();
   };
-
   return (
     // 오버레이
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
@@ -151,13 +166,13 @@ export default function AddressPopup({ onClose, onSaved }: Props) {
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Search Address
             </label>
-            {isLoaded ? (
+            {placesReady ? (
               <Autocomplete
                 onLoad={(ac) => {
                   autocompleteRef.current = ac;
                 }}
                 onPlaceChanged={handlePlaceSelect}
-                options={{ componentRestrictions: { country: "ca" } }} // 캐나다만
+                options={{ componentRestrictions: { country: "ca" } }}
               >
                 <input
                   type="text"
@@ -166,7 +181,17 @@ export default function AddressPopup({ onClose, onSaved }: Props) {
                 />
               </Autocomplete>
             ) : (
-              <input className="input-base" placeholder="Loading..." disabled />
+              <input
+                className="input-base"
+                placeholder="Loading address search..."
+                disabled
+              />
+            )}
+            {loadError && (
+              <p className="text-xs text-red-500 mt-1">
+                Failed to load address search. Please enter your address
+                manually below.
+              </p>
             )}
           </div>
 
