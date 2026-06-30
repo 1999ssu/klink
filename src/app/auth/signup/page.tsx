@@ -42,7 +42,7 @@ export default function SignupPage() {
     setIsLoading(true);
     try {
       await signUp(data.email, data.password, data.name);
-      toast.success("Account created! Welcome to KStyle CA.");
+      toast.success("Account created! Welcome to kLink.");
       router.push("/");
     } catch (err: unknown) {
       if (
@@ -65,7 +65,7 @@ export default function SignupPage() {
         <div className="text-center mb-10">
           <Link href="/">
             <h1 className="font-display text-4xl font-bold text-primary tracking-tight">
-              KStyle CA
+              kLink
             </h1>
           </Link>
           <p className="mt-2 text-gray-500 text-sm">
@@ -166,9 +166,9 @@ export default function SignupPage() {
                 />
                 <span className="text-sm text-gray-700 leading-relaxed">
                   <strong className="text-amber-700">Important:</strong> I
-                  understand that KStyle CA acts as an intermediary. All sales
-                  are <strong>final — no returns, exchanges, or refunds</strong>{" "}
-                  are accepted for international orders.
+                  understand that kLink acts as an intermediary. All sales are{" "}
+                  <strong>final — no returns, exchanges, or refunds</strong> are
+                  accepted for international orders.
                 </span>
               </label>
               {errors.agreePolicy && (

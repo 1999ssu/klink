@@ -61,7 +61,7 @@ export default function LoginPage() {
         <div className="text-center mb-10">
           <Link href="/">
             <h1 className="font-display text-4xl font-bold text-primary tracking-tight">
-              KStyle CA
+              kLink
             </h1>
           </Link>
           <p className="mt-2 text-gray-500 text-sm">

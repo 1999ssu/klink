@@ -88,7 +88,7 @@ export default function Header() {
             href="/"
             className="font-display text-2xl font-bold text-primary tracking-tight flex-shrink-0"
           >
-            KStyle CA
+            kLink
           </Link>
 
           {/* 데스크탑 카테고리 네비게이션 */}

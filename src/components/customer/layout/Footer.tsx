@@ -9,7 +9,7 @@ export default function Footer() {
           {/* 브랜드 */}
           <div>
             <h3 className="font-display text-xl font-bold text-primary mb-3">
-              KStyle CA
+              kLink
             </h3>
             <p className="text-sm text-gray-500 leading-relaxed">
               Bringing the latest Korean fashion from Musinsa directly to
@@ -75,7 +75,7 @@ export default function Footer() {
                         justify-between items-center gap-3"
         >
           <p className="text-xs text-gray-400">
-            © {new Date().getFullYear()} KStyle CA. All rights reserved.
+            © {new Date().getFullYear()} kLink. All rights reserved.
           </p>
           <p className="text-xs text-gray-400 text-center">
             ⚠️ No returns, exchanges, or refunds on international orders.

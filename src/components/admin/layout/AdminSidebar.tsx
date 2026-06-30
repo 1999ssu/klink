@@ -40,7 +40,7 @@ export default function AdminSidebar() {
       <div className="px-6 py-5 border-b border-gray-200">
         <Link href="/admin/dashboard">
           <span className="font-display text-xl font-bold text-primary">
-            KStyle CA
+            kLink
           </span>
           <span className="block text-xs text-gray-400 mt-0.5">Admin</span>
         </Link>

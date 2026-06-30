@@ -12,7 +12,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "KStyle CA — Korean Fashion for Canada",
+  title: "kLink — Korean Fashion for Canada",
   description:
     "Shop the latest Korean fashion from Musinsa, delivered to Canada.",
 };
@@ -23,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${inter.variable} ${playfair.variable} bg-cream font-sans`}
       >
