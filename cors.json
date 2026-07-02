@@ -1,6 +1,6 @@
 [
   {
-    "origin": ["http://localhost:3000", "https://klink.vercel.app"],
+    "origin": ["http://localhost:3000", "https://k--link.vercel.app"],
     "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
     "maxAgeSeconds": 3600,
     "responseHeader": ["Content-Type", "Authorization"]
