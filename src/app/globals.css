@@ -9,6 +9,10 @@
 body {
   background-color: var(--color-cream);
 }
+a,
+button {
+  cursor: pointer;
+}
 
 @layer components {
   .btn-primary {
