@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "image.musinsa.com",
       },
+      {
+        protocol: "https",
+        hostname: "image.msscdn.net",
+      },
     ],
   },
   async headers() {
