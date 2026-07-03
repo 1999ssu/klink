@@ -3,13 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { calculateBreakdown } from "@/lib/stripe-helpers";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-06-24.dahlia",
 });
-
-// Next.js가 body를 파싱하지 않도록 설정 (Stripe 서명 검증에 필요)
-// export const config = { api: { bodyParser: false } };
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -28,14 +26,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  // 결제 성공 이벤트 처리
   if (event.type === "payment_intent.succeeded") {
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
     const { userId, itemIds } = paymentIntent.metadata;
     const itemIdList = itemIds.split(",");
 
     try {
-      // 카트에서 아이템 조회
+      // 카트 아이템 조회
       const cartSnap = await adminDb
         .collection("cart")
         .doc(userId)
@@ -46,18 +43,17 @@ export async function POST(req: NextRequest) {
         .filter((doc) => itemIdList.includes(doc.id))
         .map((doc) => doc.data());
 
-      // 유저 정보 조회 (이메일, 배송지)
+      // 유저 정보 조회
       const userDoc = await adminDb.collection("users").doc(userId).get();
       const userData = userDoc.data()!;
 
-      // 금액 재계산
-      const subtotal = purchasedItems.reduce(
-        (sum, item) => sum + item.product.price * item.quantity,
-        0,
+      // 금액 계산 (중복 제거)
+      const breakdown = calculateBreakdown(
+        purchasedItems.map((item) => ({
+          price: item.product.price,
+          quantity: item.quantity,
+        })),
       );
-      const shipping = 25.0;
-      const tax = subtotal * 0.13;
-      const total = subtotal + shipping + tax;
 
       // Firestore에 주문 생성
       await adminDb.collection("orders").add({
@@ -78,10 +74,7 @@ export async function POST(req: NextRequest) {
           ) ?? null,
         status: "paid",
         stripePaymentIntentId: paymentIntent.id,
-        subtotal: Number(subtotal.toFixed(2)),
-        shipping: Number(shipping.toFixed(2)),
-        tax: Number(tax.toFixed(2)),
-        total: Number(total.toFixed(2)),
+        ...breakdown,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });

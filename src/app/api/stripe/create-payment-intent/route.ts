@@ -1,15 +1,15 @@
 // src/app/api/stripe/create-payment-intent/route.ts
-export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { calculateBreakdown } from "@/lib/stripe-helpers";
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-06-24.dahlia",
 });
 
 export async function POST(req: NextRequest) {
   try {
-    // Firebase 토큰으로 유저 인증
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Firestore에서 카트 아이템 조회 (가격 서버에서 검증)
+    // Firestore에서 카트 아이템 조회
     const cartSnap = await adminDb
       .collection("cart")
       .doc(userId)
@@ -46,19 +46,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 금액 서버에서 직접 계산 (클라이언트 금액 신뢰 X)
-    const subtotal = cartItems.reduce(
-      (sum, item) => sum + item.product.price * item.quantity,
-      0,
+    // 금액 계산 (중복 제거)
+    const breakdown = calculateBreakdown(
+      cartItems.map((item) => ({
+        price: item.product.price,
+        quantity: item.quantity,
+      })),
     );
-    const shipping = 25.0; // 고정 배송비 (CAD)
-    const taxRate = 0.13; // Ontario HST 13%
-    const tax = subtotal * taxRate;
-    const total = subtotal + shipping + tax;
 
     // Stripe PaymentIntent 생성
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(total * 100), // cents 단위
+      amount: Math.round(breakdown.total * 100),
       currency: "cad",
       metadata: {
         userId,
@@ -68,12 +66,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
-      breakdown: {
-        subtotal: Number(subtotal.toFixed(2)),
-        shipping: Number(shipping.toFixed(2)),
-        tax: Number(tax.toFixed(2)),
-        total: Number(total.toFixed(2)),
-      },
+      breakdown,
     });
   } catch (err) {
     console.error("Stripe error:", err);
