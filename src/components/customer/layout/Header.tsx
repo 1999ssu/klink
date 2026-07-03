@@ -7,48 +7,10 @@ import { useRouter } from "next/navigation";
 import { ShoppingCart, Heart, User, ChevronDown, Menu, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCartStore } from "@/store/cartStore";
+import { CATEGORIES } from "@/constants/categories";
 import toast from "react-hot-toast";
 
 // 카테고리 데이터 구조
-const CATEGORIES = [
-  {
-    label: "Men",
-    value: "men",
-    subcategories: [
-      { label: "Tops", value: "tops" },
-      { label: "Pants", value: "pants" },
-      { label: "Outerwear", value: "outerwear" },
-      { label: "Shoes", value: "shoes" },
-      { label: "Hats", value: "hats" },
-      { label: "Accessories", value: "accessories" },
-    ],
-  },
-  {
-    label: "Women",
-    value: "women",
-    subcategories: [
-      { label: "Tops", value: "tops" },
-      { label: "Pants", value: "pants" },
-      { label: "Skirts", value: "skirts" },
-      { label: "Dresses", value: "dresses" },
-      { label: "Outerwear", value: "outerwear" },
-      { label: "Shoes", value: "shoes" },
-      { label: "Hats", value: "hats" },
-      { label: "Accessories", value: "accessories" },
-    ],
-  },
-  {
-    label: "Unisex",
-    value: "unisex",
-    subcategories: [
-      { label: "Tops", value: "tops" },
-      { label: "Pants", value: "pants" },
-      { label: "Outerwear", value: "outerwear" },
-      { label: "Shoes", value: "shoes" },
-      { label: "Accessories", value: "accessories" },
-    ],
-  },
-] as const;
 
 export default function Header() {
   const { user, logOut } = useAuth();

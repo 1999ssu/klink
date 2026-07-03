@@ -36,17 +36,15 @@ export default function AdminSidebar() {
       className="w-56 flex-shrink-0 bg-white border-r border-gray-200 
                       flex flex-col min-h-screen sticky top-0"
     >
-      {/* 로고 */}
       <div className="px-6 py-5 border-b border-gray-200">
         <Link href="/admin/dashboard">
           <span className="font-display text-xl font-bold text-primary">
-            kLink
+            KStyle CA
           </span>
           <span className="block text-xs text-gray-400 mt-0.5">Admin</span>
         </Link>
       </div>
 
-      {/* 네비 */}
       <nav className="flex-1 py-4 space-y-1 px-3">
         {NAV_ITEMS.map(({ label, href, icon: Icon }) => (
           <Link
@@ -66,7 +64,6 @@ export default function AdminSidebar() {
         ))}
       </nav>
 
-      {/* 로그아웃 */}
       <div className="px-3 py-4 border-t border-gray-200">
         <button
           onClick={handleLogOut}
