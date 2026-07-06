@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { Order } from "@/types";
 import { formatDate } from "@/lib/utils";
 import StatusBadge from "@/components/shared/StatusBadge";
+import PriceSummary from "@/components/shared/PriceSummary";
 
 interface Props {
   order: Order;
@@ -143,24 +144,14 @@ export default function OrderCard({ order }: Props) {
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
               Payment Summary
             </h3>
-            <div className="space-y-1.5 text-sm text-gray-600">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>${order.subtotal.toFixed(2)} CAD</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Shipping</span>
-                <span>${order.shipping.toFixed(2)} CAD</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Taxes</span>
-                <span>${order.tax.toFixed(2)} CAD</span>
-              </div>
-              <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
-                <span>Total</span>
-                <span>${order.total.toFixed(2)} CAD</span>
-              </div>
-            </div>
+            <PriceSummary
+              rows={[
+                { label: "Subtotal", value: order.subtotal },
+                { label: "Shipping", value: order.shipping },
+                { label: "Taxes", value: order.tax },
+                { label: "Total", value: order.total, bold: true },
+              ]}
+            />
           </div>
 
           <p className="text-xs text-gray-400 bg-gray-50 px-3 py-2 border border-gray-100">

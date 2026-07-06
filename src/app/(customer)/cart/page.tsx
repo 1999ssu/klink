@@ -8,6 +8,9 @@ import { Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import EmptyState from "@/components/shared/EmptyState";
+import QuantityControl from "@/components/shared/QuantityControl";
+import Checkbox from "@/components/shared/Checkbox";
+import PriceSummary from "@/components/shared/PriceSummary";
 
 export default function CartPage() {
   return (
@@ -93,11 +96,9 @@ function CartContent() {
                   className="flex items-start gap-4 p-4 bg-white border border-gray-200"
                 >
                   {/* 체크박스 */}
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selected.has(item.id)}
                     onChange={() => toggleSelect(item.id)}
-                    className="accent-primary mt-1 flex-shrink-0"
                   />
 
                   {/* 이미지 */}
@@ -144,29 +145,16 @@ function CartContent() {
                     {/* 수량 조절 + 단가 */}
                     <div className="flex items-center justify-between mt-3">
                       {/* 수량 */}
-                      <div className="flex items-center border border-gray-300">
-                        <button
-                          onClick={() =>
-                            updateQuantity(item.id, item.quantity - 1)
-                          }
-                          disabled={item.quantity <= 1}
-                          className="px-2.5 py-1.5 hover:bg-gray-50 transition-colors 
-                                     disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <Minus size={12} />
-                        </button>
-                        <span className="px-4 py-1.5 text-sm font-medium border-x border-gray-300 min-w-[40px] text-center">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() =>
-                            updateQuantity(item.id, item.quantity + 1)
-                          }
-                          className="px-2.5 py-1.5 hover:bg-gray-50 transition-colors"
-                        >
-                          <Plus size={12} />
-                        </button>
-                      </div>
+                      <QuantityControl
+                        quantity={item.quantity}
+                        onIncrease={() =>
+                          updateQuantity(item.id, item.quantity + 1)
+                        }
+                        onDecrease={() =>
+                          updateQuantity(item.id, item.quantity - 1)
+                        }
+                        size="sm"
+                      />
 
                       {/* 소계 */}
                       <p className="text-sm font-semibold text-gray-900">
@@ -195,34 +183,17 @@ function CartContent() {
                 Order Summary
               </h2>
 
-              <div className="space-y-3 text-sm text-gray-600">
-                <div className="flex justify-between">
-                  <span>
-                    Subtotal
-                    {selected.size > 0 && (
-                      <span className="text-gray-400 ml-1">
-                        ({selected.size} items)
-                      </span>
-                    )}
-                  </span>
-                  <span className="font-medium text-gray-900">
-                    ${subtotal.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Shipping</span>
-                  <span className="text-gray-400">Calculated at checkout</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Taxes</span>
-                  <span className="text-gray-400">Calculated at checkout</span>
-                </div>
-              </div>
-
-              <div className="border-t border-gray-200 mt-4 pt-4 flex justify-between font-semibold text-gray-900">
-                <span>Estimated Total</span>
-                <span>${subtotal.toFixed(2)} CAD</span>
-              </div>
+              <PriceSummary
+                rows={[
+                  {
+                    label: `Subtotal (${selected.size} items)`,
+                    value: subtotal,
+                  },
+                  { label: "Shipping", value: "Calculated at checkout" },
+                  { label: "Taxes", value: "Calculated at checkout" },
+                  { label: "Estimated Total", value: subtotal, bold: true },
+                ]}
+              />
 
               {/* 선택 없으면 안내 */}
               {selected.size === 0 && (

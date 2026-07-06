@@ -12,6 +12,8 @@ import { useAuthStore } from "@/store/authStore";
 import Image from "next/image";
 import { Heart, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
 import toast from "react-hot-toast";
+import QuantityControl from "@/components/shared/QuantityControl";
+import ProductImage from "@/components/shared/ProductImage";
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -97,20 +99,13 @@ export default function ProductDetailPage() {
         <div className="space-y-3">
           {/* 메인 이미지 */}
           <div className="relative aspect-[3/4] bg-gray-100 overflow-hidden">
-            {product.images[currentImg] ? (
-              <Image
-                src={product.images[currentImg]}
-                alt={product.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 50vw"
-                priority
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-300">
-                No Image
-              </div>
-            )}
+            <ProductImage
+              src={product.images[currentImg]}
+              alt={product.name}
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              priority
+            />
 
             {/* 이미지 이전/다음 버튼 */}
             {product.images.length > 1 && (
@@ -215,23 +210,11 @@ export default function ProductDetailPage() {
           {/* 수량 */}
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">Quantity</p>
-            <div className="flex items-center border border-gray-300 w-fit">
-              <button
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="px-3 py-2 hover:bg-gray-50 transition-colors"
-              >
-                <Minus size={14} />
-              </button>
-              <span className="px-5 py-2 text-sm font-medium border-x border-gray-300 min-w-[48px] text-center">
-                {quantity}
-              </span>
-              <button
-                onClick={() => setQuantity((q) => q + 1)}
-                className="px-3 py-2 hover:bg-gray-50 transition-colors"
-              >
-                <Plus size={14} />
-              </button>
-            </div>
+            <QuantityControl
+              quantity={quantity}
+              onIncrease={() => setQuantity((q) => q + 1)}
+              onDecrease={() => setQuantity((q) => Math.max(1, q - 1))}
+            />
           </div>
 
           {/* 버튼 영역 */}

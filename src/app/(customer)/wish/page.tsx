@@ -14,6 +14,7 @@ import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import toast from "react-hot-toast";
 import PageSkeleton from "@/components/shared/PageSkeleton";
 import EmptyState from "@/components/shared/EmptyState";
+import Checkbox from "@/components/shared/Checkbox";
 
 // Firestore wishlist 문서 타입
 interface WishDoc {
@@ -192,11 +193,9 @@ function WishContent() {
                 className="flex items-center gap-4 p-4 bg-white border border-gray-200"
               >
                 {/* 체크박스 */}
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={selected.has(item.id)}
                   onChange={() => toggleSelect(item.id)}
-                  className="accent-primary flex-shrink-0"
                 />
 
                 {/* 이미지 */}

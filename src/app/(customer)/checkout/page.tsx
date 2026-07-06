@@ -18,6 +18,7 @@ import { ChevronDown, ChevronUp, MapPin, Edit2, Plus } from "lucide-react";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import AddressPopup from "@/components/customer/checkout/AddressPopup";
 import AddressListPopup from "@/components/customer/checkout/AddressListPopup";
+import PriceSummary from "@/components/shared/PriceSummary";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
@@ -247,31 +248,14 @@ function CheckoutContent() {
               Order Summary
             </h2>
 
-            <div className="space-y-3 text-sm text-gray-600">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span className="font-medium text-gray-900">
-                  ${breakdown?.subtotal.toFixed(2) ?? "—"} CAD
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Shipping</span>
-                <span className="font-medium text-gray-900">
-                  ${breakdown?.shipping.toFixed(2) ?? "—"} CAD
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Taxes (HST 13%)</span>
-                <span className="font-medium text-gray-900">
-                  ${breakdown?.tax.toFixed(2) ?? "—"} CAD
-                </span>
-              </div>
-            </div>
-
-            <div className="border-t border-gray-200 mt-4 pt-4 flex justify-between font-bold text-gray-900">
-              <span>Total</span>
-              <span>${breakdown?.total.toFixed(2) ?? "—"} CAD</span>
-            </div>
+            <PriceSummary
+              rows={[
+                { label: "Subtotal", value: breakdown?.subtotal ?? 0 },
+                { label: "Shipping", value: breakdown?.shipping ?? 0 },
+                { label: "Taxes (HST 13%)", value: breakdown?.tax ?? 0 },
+                { label: "Total", value: breakdown?.total ?? 0, bold: true },
+              ]}
+            />
 
             {/* 정책 안내 */}
             <p className="mt-4 text-xs text-gray-400 leading-relaxed">
