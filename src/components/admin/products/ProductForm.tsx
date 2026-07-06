@@ -31,6 +31,7 @@ import PricingSection from "./form-sections/PricingSection";
 import CategorySection from "./form-sections/CategorySection";
 import SizesSection from "./form-sections/SizesSection";
 import ImageSection from "./form-sections/ImageSection";
+import { createDoc, updateDocById } from "@/lib/firestore-crud";
 
 export const productSchema = z.object({
   name: z.string().min(1, "Required"),
@@ -153,17 +154,12 @@ export default function ProductForm({ product, prefill }: Props) {
       };
 
       if (isEdit && product) {
-        await updateDoc(doc(db, "products", product.id), {
-          ...payload,
-          updatedAt: serverTimestamp(),
-        });
+        // 수정
+        await updateDocById("products", product.id, payload);
         toast.success("Product updated!");
       } else {
-        await addDoc(collection(db, "products"), {
-          ...payload,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+        // 신규 등록
+        await createDoc("products", payload);
         toast.success("Product added!");
       }
 

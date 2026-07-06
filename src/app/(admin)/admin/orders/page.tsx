@@ -19,6 +19,7 @@ import StatusBadge from "@/components/shared/StatusBadge";
 import PageSkeleton from "@/components/shared/PageSkeleton";
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import toast from "react-hot-toast";
+import { updateDocById } from "@/lib/firestore-crud";
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -76,10 +77,7 @@ export default function AdminOrdersPage() {
 
   const updateStatus = async (orderId: string, nextStatus: OrderStatus) => {
     try {
-      await updateDoc(doc(db, "orders", orderId), {
-        status: nextStatus,
-        updatedAt: serverTimestamp(),
-      });
+      await updateDocById("orders", orderId, { status: nextStatus });
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o)),
       );

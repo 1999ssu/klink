@@ -2,19 +2,17 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  collection,
-  doc,
-  setDoc,
-  deleteDoc,
-  getDocs,
-  updateDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
 import { CartItem, Product } from "@/types";
+import {
+  fetchSubCollection,
+  setSubDoc,
+  updateDocById,
+  deleteSubDoc,
+} from "@/lib/firestore-crud";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 
@@ -22,7 +20,7 @@ export function useCart() {
   const { user } = useAuthStore();
   const { items, setItems } = useCartStore();
 
-  // 카트 데이터 Firestore에서 불러오기
+  // 카트 불러오기
   useEffect(() => {
     if (!user) {
       setItems([]);
@@ -30,32 +28,28 @@ export function useCart() {
     }
 
     const fetchCart = async () => {
-      const snapshot = await getDocs(collection(db, "cart", user.id, "items"));
-      const data = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as CartItem[];
+      const data = await fetchSubCollection<CartItem>("cart", user.id, "items");
       setItems(data);
     };
 
     fetchCart();
   }, [user, setItems]);
 
-  // 카트에 상품 추가
+  // 카트 추가
   const addToCart = async (product: Product, size: string, quantity = 1) => {
     if (!user) {
       toast.error("Please sign in to add items to cart.");
       return;
     }
 
-    // 동일 상품 + 사이즈가 이미 있으면 수량만 증가
     const existing = items.find(
       (item) => item.productId === product.id && item.size === size,
     );
 
     if (existing) {
-      const ref = doc(db, "cart", user.id, "items", existing.id);
-      await updateDoc(ref, { quantity: existing.quantity + quantity });
+      await updateDoc(doc(db, "cart", user.id, "items", existing.id), {
+        quantity: existing.quantity + quantity,
+      });
       setItems(
         items.map((item) =>
           item.id === existing.id
@@ -71,13 +65,11 @@ export function useCart() {
         size,
         quantity,
       };
-      const ref = doc(db, "cart", user.id, "items", newItem.id);
-      await setDoc(ref, {
+      await setSubDoc("cart", user.id, "items", newItem.id, {
         productId: product.id,
         product,
         size,
         quantity,
-        addedAt: serverTimestamp(),
       });
       setItems([...items, newItem]);
     }
@@ -88,8 +80,7 @@ export function useCart() {
   // 수량 변경
   const updateQuantity = async (itemId: string, quantity: number) => {
     if (!user || quantity < 1) return;
-    const ref = doc(db, "cart", user.id, "items", itemId);
-    await updateDoc(ref, { quantity });
+    await updateDoc(doc(db, "cart", user.id, "items", itemId), { quantity });
     setItems(
       items.map((item) => (item.id === itemId ? { ...item, quantity } : item)),
     );
@@ -98,7 +89,7 @@ export function useCart() {
   // 단일 삭제
   const removeItem = async (itemId: string) => {
     if (!user) return;
-    await deleteDoc(doc(db, "cart", user.id, "items", itemId));
+    await deleteSubDoc("cart", user.id, "items", itemId);
     setItems(items.filter((item) => item.id !== itemId));
   };
 
@@ -106,7 +97,7 @@ export function useCart() {
   const removeItems = async (itemIds: string[]) => {
     if (!user) return;
     await Promise.all(
-      itemIds.map((id) => deleteDoc(doc(db, "cart", user.id, "items", id))),
+      itemIds.map((id) => deleteSubDoc("cart", user.id, "items", id)),
     );
     setItems(items.filter((item) => !itemIds.includes(item.id)));
   };
@@ -115,9 +106,7 @@ export function useCart() {
   const clearCart = async () => {
     if (!user) return;
     await Promise.all(
-      items.map((item) =>
-        deleteDoc(doc(db, "cart", user.id, "items", item.id)),
-      ),
+      items.map((item) => deleteSubDoc("cart", user.id, "items", item.id)),
     );
     setItems([]);
   };

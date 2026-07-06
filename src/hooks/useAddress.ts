@@ -2,8 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { updateDocById } from "@/lib/firestore-crud";
 import { useAuthStore } from "@/store/authStore";
 import { Address } from "@/types";
 import { v4 as uuidv4 } from "uuid";
@@ -14,7 +13,6 @@ export function useAddress() {
   const [loading, setLoading] = useState(false);
 
   // 주소 추가
-  // 변경 후 — user.addresses가 없을 때 빈 배열로 처리
   const addAddress = async (data: Omit<Address, "id">) => {
     if (!user) return;
     setLoading(true);
@@ -33,9 +31,7 @@ export function useAddress() {
         newAddress,
       ];
 
-      await updateDoc(doc(db, "users", user.id), {
-        addresses: updatedAddresses,
-      });
+      await updateDocById("users", user.id, { addresses: updatedAddresses });
       setUser({ ...user, addresses: updatedAddresses });
       toast.success("Address saved!");
       return newAddress;
@@ -60,7 +56,7 @@ export function useAddress() {
       updatedAddresses[0].isDefault = true;
     }
 
-    await updateDoc(doc(db, "users", user.id), { addresses: updatedAddresses });
+    await updateDocById("users", user.id, { addresses: updatedAddresses });
     setUser({ ...user, addresses: updatedAddresses });
     toast.success("Address removed.");
   };
@@ -72,7 +68,7 @@ export function useAddress() {
       ...a,
       isDefault: a.id === addressId,
     }));
-    await updateDoc(doc(db, "users", user.id), { addresses: updatedAddresses });
+    await updateDocById("users", user.id, { addresses: updatedAddresses });
     setUser({ ...user, addresses: updatedAddresses });
     toast.success("Default address updated.");
   };
