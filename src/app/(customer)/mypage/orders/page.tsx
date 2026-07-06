@@ -7,6 +7,8 @@ import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
 import { Order } from "@/types";
 import OrderCard from "@/components/customer/mypage/OrderCard";
+import PageSkeleton from "@/components/shared/PageSkeleton";
+import EmptyState from "@/components/shared/EmptyState";
 
 export default function OrdersPage() {
   const { user } = useAuthStore();
@@ -48,22 +50,14 @@ export default function OrdersPage() {
     };
   }, [user]);
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-40 bg-gray-200 animate-pulse" />
-        ))}
-      </div>
-    );
-  }
+  if (loading) return <PageSkeleton rows={3} height="h-40" />;
 
   if (orders.length === 0) {
     return (
-      <div className="text-center py-20 text-gray-400">
-        <p className="text-lg font-medium">No orders yet.</p>
-        <p className="text-sm mt-1">Your order history will appear here.</p>
-      </div>
+      <EmptyState
+        message="No orders yet."
+        submessage="Your order history will appear here."
+      />
     );
   }
 

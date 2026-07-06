@@ -4,6 +4,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import LoadingSpinner from "./LoadingSpinner";
 
 interface Props {
   children: React.ReactNode;
@@ -31,13 +32,7 @@ export default function ProtectedRoute({
   }, [user, loading, requireAdmin, router]);
 
   // 로딩 중
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-cream">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <LoadingSpinner size="md" fullScreen />;
 
   // 미인증 또는 권한 없음 → useEffect에서 redirect 처리
   if (!user || (requireAdmin && user.role !== "admin")) return null;

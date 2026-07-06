@@ -12,6 +12,8 @@ import Link from "next/link";
 import { Trash2, ShoppingCart } from "lucide-react";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
 import toast from "react-hot-toast";
+import PageSkeleton from "@/components/shared/PageSkeleton";
+import EmptyState from "@/components/shared/EmptyState";
 
 // Firestore wishlist 문서 타입
 interface WishDoc {
@@ -126,10 +128,8 @@ function WishContent() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12 space-y-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-24 bg-gray-200 animate-pulse" />
-        ))}
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <PageSkeleton rows={3} height="h-24" />
       </div>
     );
   }
@@ -141,15 +141,11 @@ function WishContent() {
       </h1>
 
       {items.length === 0 ? (
-        <div className="text-center py-24 text-gray-400">
-          <p className="text-lg font-medium">Your wishlist is empty.</p>
-          <Link
-            href="/products"
-            className="mt-4 inline-block text-primary text-sm hover:underline"
-          >
-            Browse Products →
-          </Link>
-        </div>
+        <EmptyState
+          message="Your wishlist is empty."
+          linkLabel="Browse Products →"
+          linkHref="/products"
+        />
       ) : (
         <>
           {/* 전체 선택 + 일괄 액션 */}

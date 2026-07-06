@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
+import EmptyState from "@/components/shared/EmptyState";
 
 export default function CartPage() {
   return (
@@ -52,15 +53,11 @@ function CartContent() {
       </h1>
 
       {items.length === 0 ? (
-        <div className="text-center py-24 text-gray-400">
-          <p className="text-lg font-medium">Your cart is empty.</p>
-          <Link
-            href="/products"
-            className="mt-4 inline-block text-primary text-sm hover:underline"
-          >
-            Browse Products →
-          </Link>
-        </div>
+        <EmptyState
+          message="Your cart is empty."
+          linkLabel="Browse Products →"
+          linkHref="/products"
+        />
       ) : (
         <div className="flex flex-col lg:flex-row gap-8">
           {/* 카트 아이템 목록 */}
