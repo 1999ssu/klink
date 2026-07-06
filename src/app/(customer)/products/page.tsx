@@ -1,18 +1,17 @@
-//src/app/(customer)/products/page.tsx
-
+// src/app/(customer)/products/page.tsx
 "use client";
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { where, orderBy } from "firebase/firestore";
 import { Product, ProductCategory, ProductSubcategory } from "@/types";
+import { useCollection } from "@/hooks/useFirestore";
 import ProductCard from "@/components/customer/product/ProductCard";
 import ProductCardSkeleton from "@/components/customer/product/ProductCardSkeleton";
 import ProductFilters from "@/components/customer/product/ProductFilters";
+import EmptyState from "@/components/shared/EmptyState";
 import { SlidersHorizontal, X } from "lucide-react";
-import { useCollection } from "@/hooks/useFirestore";
 
-// useSearchParams 쓰는 실제 내용을 별도 컴포넌트로 분리
 function ProductsContent() {
   const searchParams = useSearchParams();
   const category = searchParams.get("category") as ProductCategory | null;
@@ -32,15 +31,13 @@ function ProductsContent() {
         ? orderBy("price", "desc")
         : orderBy("createdAt", "desc");
 
-  const constraints = [
-    where("status", "!=", "hidden"),
-    ...(category ? [where("category", "==", category)] : []),
-    ...(subcategory ? [where("subcategory", "==", subcategory)] : []),
-    sortConstraint,
-  ];
-
   const { data: products, loading } = useCollection<Product>("products", {
-    constraints,
+    constraints: [
+      where("status", "!=", "hidden"),
+      ...(category ? [where("category", "==", category)] : []),
+      ...(subcategory ? [where("subcategory", "==", subcategory)] : []),
+      sortConstraint,
+    ],
   });
 
   const pageTitle = subcategory
@@ -67,8 +64,8 @@ function ProductsContent() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-            className="text-sm border border-gray-300 px-3 py-2 bg-white focus:outline-none
-                       focus:border-primary cursor-pointer"
+            className="text-sm border border-gray-300 px-3 py-2 bg-white 
+                       focus:outline-none focus:border-primary cursor-pointer"
           >
             <option value="newest">Newest</option>
             <option value="price_asc">Price: Low to High</option>
@@ -108,12 +105,10 @@ function ProductsContent() {
           </div>
 
           {!loading && products.length === 0 && (
-            <div className="text-center py-24 text-gray-400">
-              <p className="text-lg font-medium">No products found.</p>
-              <p className="text-sm mt-1">
-                Try a different category or check back later.
-              </p>
-            </div>
+            <EmptyState
+              message="No products found."
+              submessage="Try a different category or check back later."
+            />
           )}
         </div>
       </div>
@@ -121,7 +116,6 @@ function ProductsContent() {
   );
 }
 
-// 바깥 페이지에서 Suspense로 감싸기
 export default function ProductsPage() {
   return (
     <Suspense
