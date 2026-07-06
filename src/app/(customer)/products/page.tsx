@@ -33,14 +33,16 @@ function ProductsContent() {
     "newest",
   );
 
+  const searchKey = searchParams.toString();
+
   // category, subcategory, sortBy 바뀔 때마다 새로 fetch
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setProducts([]); // 이전 결과 즉시 초기화
 
     const fetchProducts = async () => {
       try {
+        setLoading(true);
+        setProducts([]); // 이전 결과 즉시 초기화
         const constraints: QueryConstraint[] = [];
 
         if (category) constraints.push(where("category", "==", category));
@@ -77,7 +79,7 @@ function ProductsContent() {
     return () => {
       cancelled = true;
     };
-  }, [category, subcategory, sortBy]);
+  }, [category, subcategory, sortBy, searchKey]);
 
   const pageTitle = subcategory
     ? `${category?.toUpperCase()} / ${subcategory.toUpperCase()}`
