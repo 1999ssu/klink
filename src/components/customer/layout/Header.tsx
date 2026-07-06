@@ -85,6 +85,7 @@ export default function Header() {
                       <Link
                         key={sub.value}
                         href={`/products?category=${cat.value}&subcategory=${sub.value}`}
+                        prefetch={false}
                         className="block px-5 py-2.5 text-sm text-gray-600 hover:text-primary 
                                    hover:bg-cream transition-colors duration-150"
                       >
@@ -238,6 +239,7 @@ export default function Header() {
                     <Link
                       key={sub.value}
                       href={`/products?category=${cat.value}&subcategory=${sub.value}`}
+                      prefetch={false}
                       onClick={() => setMobileMenuOpen(false)}
                       className="block px-8 py-2.5 text-sm text-gray-600 hover:text-primary"
                     >

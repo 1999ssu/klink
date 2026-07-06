@@ -19,6 +19,7 @@ export default function ProductFilters({
       {/* 전체 보기 */}
       <Link
         href="/products"
+        prefetch={false}
         className={`block text-sm font-medium pb-3 border-b border-gray-200
           ${!currentCategory ? "text-primary" : "text-gray-700 hover:text-primary"}`}
       >
@@ -30,6 +31,7 @@ export default function ProductFilters({
           {/* 카테고리 */}
           <Link
             href={`/products?category=${group.value}`}
+            prefetch={false}
             className={`block text-sm font-semibold mb-2 uppercase tracking-wider
               ${
                 currentCategory === group.value && !currentSubcategory
@@ -46,6 +48,7 @@ export default function ProductFilters({
               <li key={sub.value}>
                 <Link
                   href={`/products?category=${group.value}&subcategory=${sub.value}`}
+                  prefetch={false}
                   className={`text-sm transition-colors duration-150
                     ${
                       currentCategory === group.value &&
