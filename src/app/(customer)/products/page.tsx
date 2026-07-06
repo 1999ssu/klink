@@ -1,22 +1,16 @@
-// 변경 후
+//src/app/(customer)/products/page.tsx
+
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  QueryConstraint,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { where, orderBy } from "firebase/firestore";
 import { Product, ProductCategory, ProductSubcategory } from "@/types";
 import ProductCard from "@/components/customer/product/ProductCard";
 import ProductCardSkeleton from "@/components/customer/product/ProductCardSkeleton";
 import ProductFilters from "@/components/customer/product/ProductFilters";
 import { SlidersHorizontal, X } from "lucide-react";
+import { useCollection } from "@/hooks/useFirestore";
 
 // useSearchParams 쓰는 실제 내용을 별도 컴포넌트로 분리
 function ProductsContent() {
@@ -26,58 +20,28 @@ function ProductsContent() {
     "subcategory",
   ) as ProductSubcategory | null;
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">(
     "newest",
   );
 
-  useEffect(() => {
-    let cancelled = false;
+  const sortConstraint =
+    sortBy === "price_asc"
+      ? orderBy("price", "asc")
+      : sortBy === "price_desc"
+        ? orderBy("price", "desc")
+        : orderBy("createdAt", "desc");
 
-    const fetchProducts = async () => {
-      setLoading(true);
-      try {
-        const constraints: QueryConstraint[] = [
-          where("status", "!=", "hidden"),
-        ];
+  const constraints = [
+    where("status", "!=", "hidden"),
+    ...(category ? [where("category", "==", category)] : []),
+    ...(subcategory ? [where("subcategory", "==", subcategory)] : []),
+    sortConstraint,
+  ];
 
-        if (category) constraints.push(where("category", "==", category));
-        if (subcategory)
-          constraints.push(where("subcategory", "==", subcategory));
-
-        if (sortBy === "newest") constraints.push(orderBy("createdAt", "desc"));
-        else if (sortBy === "price_asc")
-          constraints.push(orderBy("price", "asc"));
-        else if (sortBy === "price_desc")
-          constraints.push(orderBy("price", "desc"));
-
-        const q = query(collection(db, "products"), ...constraints);
-        const snapshot = await getDocs(q);
-
-        if (cancelled) return;
-
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate(),
-          updatedAt: doc.data().updatedAt?.toDate(),
-        })) as Product[];
-
-        setProducts(data);
-      } catch (err) {
-        console.error("Failed to fetch products:", err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    fetchProducts();
-    return () => {
-      cancelled = true;
-    };
-  }, [category, subcategory, sortBy]);
+  const { data: products, loading } = useCollection<Product>("products", {
+    constraints,
+  });
 
   const pageTitle = subcategory
     ? `${category?.toUpperCase()} / ${subcategory.toUpperCase()}`

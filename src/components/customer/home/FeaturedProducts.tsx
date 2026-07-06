@@ -1,51 +1,21 @@
 // src/components/customer/home/FeaturedProducts.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  collection,
-  query,
-  where,
-  limit,
-  getDocs,
-  orderBy,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { where, limit, orderBy } from "firebase/firestore";
 import { Product } from "@/types";
 import ProductCard from "@/components/customer/product/ProductCard";
 import ProductCardSkeleton from "@/components/customer/product/ProductCardSkeleton";
 import Link from "next/link";
+import { useCollection } from "@/hooks/useFirestore";
 
 export default function FeaturedProducts() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchFeatured = async () => {
-      try {
-        const q = query(
-          collection(db, "products"),
-          where("status", "==", "active"),
-          orderBy("createdAt", "desc"),
-          limit(6),
-        );
-        const snapshot = await getDocs(q);
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate(),
-          updatedAt: doc.data().updatedAt?.toDate(),
-        })) as Product[];
-        setProducts(data);
-      } catch (err) {
-        console.error("Failed to fetch featured products:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFeatured();
-  }, []);
+  const { data: products, loading } = useCollection<Product>("products", {
+    constraints: [
+      where("status", "==", "active"),
+      orderBy("createdAt", "desc"),
+      limit(6),
+    ],
+  });
 
   return (
     <section className="max-w-7xl mx-auto px-4 py-16">
