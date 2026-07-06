@@ -1,5 +1,5 @@
 // src/hooks/useFirestore.ts
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   collection,
   query,
@@ -19,16 +19,19 @@ export function useCollection<T = DocumentData>(
   options: UseCollectionOptions = {},
 ) {
   const { constraints = [], enabled = true } = options;
-
-  // enabled가 false면 처음부터 loading을 false로 초기화
   const [data, setData] = useState<T[]>([]);
-  const [loading, setLoading] = useState(enabled); // ← 이렇게 초기값으로 처리
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<Error | null>(null);
 
+  // constraints를 JSON으로 직렬화해서 변경 감지
+  // (객체 참조가 매 렌더마다 달라지는 문제 해결)
+  const constraintsKey = JSON.stringify(constraints.map((c) => c.type));
+
   useEffect(() => {
-    if (!enabled) return; // ← setState 호출 없이 그냥 return
+    if (!enabled) return;
 
     let cancelled = false;
+    setLoading(true);
 
     const fetchData = async () => {
       try {
@@ -58,7 +61,7 @@ export function useCollection<T = DocumentData>(
     return () => {
       cancelled = true;
     };
-  }, [collectionName, enabled]); // eslint-disable-line
+  }, [collectionName, enabled, constraintsKey]); // eslint-disable-line
 
   return { data, loading, error };
 }

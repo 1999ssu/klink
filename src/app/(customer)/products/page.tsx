@@ -1,11 +1,18 @@
 // src/app/(customer)/products/page.tsx
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { where, orderBy } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
+  QueryConstraint,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { Product, ProductCategory, ProductSubcategory } from "@/types";
-import { useCollection } from "@/hooks/useFirestore";
 import ProductCard from "@/components/customer/product/ProductCard";
 import ProductCardSkeleton from "@/components/customer/product/ProductCardSkeleton";
 import ProductFilters from "@/components/customer/product/ProductFilters";
@@ -19,26 +26,58 @@ function ProductsContent() {
     "subcategory",
   ) as ProductSubcategory | null;
 
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<"newest" | "price_asc" | "price_desc">(
     "newest",
   );
 
-  const sortConstraint =
-    sortBy === "price_asc"
-      ? orderBy("price", "asc")
-      : sortBy === "price_desc"
-        ? orderBy("price", "desc")
-        : orderBy("createdAt", "desc");
+  // category, subcategory, sortBy 바뀔 때마다 새로 fetch
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setProducts([]); // 이전 결과 즉시 초기화
 
-  const { data: products, loading } = useCollection<Product>("products", {
-    constraints: [
-      where("status", "!=", "hidden"),
-      ...(category ? [where("category", "==", category)] : []),
-      ...(subcategory ? [where("subcategory", "==", subcategory)] : []),
-      sortConstraint,
-    ],
-  });
+    const fetchProducts = async () => {
+      try {
+        const constraints: QueryConstraint[] = [];
+
+        if (category) constraints.push(where("category", "==", category));
+        if (subcategory)
+          constraints.push(where("subcategory", "==", subcategory));
+
+        if (sortBy === "price_asc") constraints.push(orderBy("price", "asc"));
+        else if (sortBy === "price_desc")
+          constraints.push(orderBy("price", "desc"));
+        else constraints.push(orderBy("createdAt", "desc"));
+
+        const q = query(collection(db, "products"), ...constraints);
+        const snapshot = await getDocs(q);
+        if (cancelled) return;
+
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate(),
+          updatedAt: doc.data().updatedAt?.toDate(),
+        })) as Product[];
+
+        // 클라이언트에서 hidden 필터링 (where != 인덱스 문제 우회)
+        const visible = data.filter((p) => p.status !== "hidden");
+        setProducts(visible);
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchProducts();
+    return () => {
+      cancelled = true;
+    };
+  }, [category, subcategory, sortBy]);
 
   const pageTitle = subcategory
     ? `${category?.toUpperCase()} / ${subcategory.toUpperCase()}`
