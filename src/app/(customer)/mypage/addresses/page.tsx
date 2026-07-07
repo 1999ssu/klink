@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2, Check, Edit2 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useAddress } from "@/hooks/useAddress";
 import { Address } from "@/types";
@@ -12,6 +12,7 @@ export default function AddressesPage() {
   const { user } = useAuthStore();
   const { removeAddress, setDefaultAddress } = useAddress();
   const [showAddPopup, setShowAddPopup] = useState(false);
+  const [editTarget, setEditTarget] = useState<Address | null>(null); // ← 수정 대상
 
   const addresses = user?.addresses ?? [];
 
@@ -75,6 +76,17 @@ export default function AddressesPage() {
 
                 {/* 액션 버튼 */}
                 <div className="flex flex-col gap-2 flex-shrink-0">
+                  {/* 수정 버튼 */}
+                  <button
+                    onClick={() => setEditTarget(address)}
+                    className="flex items-center justify-center gap-1.5 text-xs px-3 py-1.5
+                               border border-gray-300 text-gray-600 hover:border-primary 
+                               hover:text-primary transition-colors"
+                  >
+                    <Edit2 size={12} />
+                    Edit
+                  </button>
+
                   {!address.isDefault && (
                     <button
                       onClick={() => setDefaultAddress(address.id)}
@@ -105,6 +117,15 @@ export default function AddressesPage() {
         <AddressPopup
           onClose={() => setShowAddPopup(false)}
           onSaved={() => setShowAddPopup(false)}
+        />
+      )}
+
+      {/* 주소 수정 팝업 */}
+      {editTarget && (
+        <AddressPopup
+          editAddress={editTarget} // ← 수정 대상 전달
+          onClose={() => setEditTarget(null)}
+          onSaved={() => setEditTarget(null)}
         />
       )}
     </div>

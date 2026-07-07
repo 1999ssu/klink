@@ -43,6 +43,32 @@ export function useAddress() {
     }
   };
 
+  const updateAddress = async (
+    addressId: string,
+    data: Omit<Address, "id">,
+  ) => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const updatedAddresses = user.addresses.map((a) => {
+        if (a.id !== addressId) {
+          // isDefault true로 수정하면 기존 default 해제
+          return data.isDefault ? { ...a, isDefault: false } : a;
+        }
+        return { ...data, id: addressId };
+      });
+
+      await updateDocById("users", user.id, { addresses: updatedAddresses });
+      setUser({ ...user, addresses: updatedAddresses });
+      toast.success("Address updated!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update address.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 주소 삭제
   const removeAddress = async (addressId: string) => {
     if (!user) return;
@@ -73,5 +99,11 @@ export function useAddress() {
     toast.success("Default address updated.");
   };
 
-  return { addAddress, removeAddress, setDefaultAddress, loading };
+  return {
+    addAddress,
+    updateAddress,
+    removeAddress,
+    setDefaultAddress,
+    loading,
+  };
 }

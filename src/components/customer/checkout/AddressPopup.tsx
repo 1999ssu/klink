@@ -29,12 +29,13 @@ type AddressForm = z.infer<typeof addressSchema>;
 interface Props {
   onClose: () => void;
   onSaved: (address: Address) => void;
+  editAddress?: Address; // ← 수정 시 기존 주소 전달
 }
 
-export default function AddressPopup({ onClose, onSaved }: Props) {
-  const { addAddress, loading } = useAddress();
+export default function AddressPopup({ onClose, onSaved, editAddress }: Props) {
+  const { addAddress, updateAddress, loading } = useAddress();
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-
+  const isEdit = !!editAddress; // 수정 모드 여부
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
     libraries,
@@ -63,9 +64,16 @@ export default function AddressPopup({ onClose, onSaved }: Props) {
   } = useForm<AddressForm>({
     resolver: zodResolver(addressSchema),
     defaultValues: {
-      // ← 여기서 기본값 설정
-      country: "Canada",
-      isDefault: false,
+      // 수정 모드면 기존 값으로 초기화
+      firstName: editAddress?.firstName ?? "",
+      lastName: editAddress?.lastName ?? "",
+      phone: editAddress?.phone ?? "",
+      street: editAddress?.street ?? "",
+      city: editAddress?.city ?? "",
+      province: editAddress?.province ?? "",
+      postalCode: editAddress?.postalCode ?? "",
+      country: editAddress?.country ?? "Canada",
+      isDefault: editAddress?.isDefault ?? false,
     },
   });
   // 구글 Places에서 주소 선택 시 자동 입력
@@ -87,9 +95,15 @@ export default function AddressPopup({ onClose, onSaved }: Props) {
   };
 
   const onSubmit = async (data: AddressForm) => {
-    const saved = await addAddress(data);
-    if (saved) onSaved(saved);
-
+    if (isEdit && editAddress) {
+      // 수정 모드
+      await updateAddress(editAddress.id, data);
+      onSaved({ ...data, id: editAddress.id });
+    } else {
+      // 추가 모드
+      const saved = await addAddress(data);
+      if (saved) onSaved(saved);
+    }
     onClose();
   };
   return (
@@ -99,7 +113,7 @@ export default function AddressPopup({ onClose, onSaved }: Props) {
         {/* 헤더 */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h2 className="text-base font-semibold text-gray-900">
-            Add New Address
+            {isEdit ? "Edit Address" : "Add New Address"} {/* ← 타이틀 변경 */}
           </h2>
           <button
             onClick={onClose}
