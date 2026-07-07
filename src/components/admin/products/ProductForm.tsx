@@ -8,19 +8,12 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  collection,
-  addDoc,
-  doc,
-  updateDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import {
   ref,
   uploadBytes,
   getDownloadURL,
   deleteObject,
 } from "firebase/storage";
-import { db, storage } from "@/lib/firebase";
+import { storage } from "@/lib/firebase";
 import { Product } from "@/types";
 import { KRW_TO_CAD } from "@/constants/shipping";
 import { v4 as uuidv4 } from "uuid";
@@ -79,11 +72,11 @@ export default function ProductForm({ product, prefill }: Props) {
   const router = useRouter();
   const isEdit = !!product;
 
-  const [existingImage, setExistingImage] = useState<string>(
-    product?.images?.[0] ?? prefill?.image ?? "",
+  const [existingImages, setExistingImages] = useState<string[]>(
+    product?.images ?? (prefill?.image ? [prefill.image] : []),
   );
-  const [newImageFile, setNewImageFile] = useState<File | null>(null);
-  const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
+  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
   const {
@@ -115,50 +108,52 @@ export default function ProductForm({ product, prefill }: Props) {
   const { fields, append, remove } = useFieldArray({ control, name: "sizes" });
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setNewImageFile(file);
-    setNewImagePreview(URL.createObjectURL(file));
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setNewImageFiles((prev) => [...prev, ...files]);
+    const previews = files.map((f) => URL.createObjectURL(f));
+    setNewImagePreviews((prev) => [...prev, ...previews]);
   };
 
-  const handleRemoveExisting = async () => {
+  const handleRemoveExisting = async (url: string) => {
     try {
-      if (existingImage.startsWith("https://firebasestorage")) {
-        await deleteObject(ref(storage, existingImage));
+      if (url.startsWith("https://firebasestorage")) {
+        await deleteObject(ref(storage, url));
       }
     } catch {}
-    setExistingImage("");
+    setExistingImages((prev) => prev.filter((u) => u !== url));
   };
 
-  const handleRemoveNew = () => {
-    setNewImageFile(null);
-    setNewImagePreview(null);
+  const handleRemoveNew = (index: number) => {
+    setNewImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setNewImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const onSubmit = async (data: ProductFormData) => {
     setUploading(true);
     try {
-      let finalImage = existingImage;
-
-      // 새 이미지 업로드
-      if (newImageFile) {
-        const fileName = `products/${uuidv4()}_${newImageFile.name}`;
+      // 새 이미지 전부 업로드
+      const uploadedUrls: string[] = [];
+      for (const file of newImageFiles) {
+        const fileName = `products/${uuidv4()}_${file.name}`;
         const storageRef = ref(storage, fileName);
-        await uploadBytes(storageRef, newImageFile);
-        finalImage = await getDownloadURL(storageRef);
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+        uploadedUrls.push(url);
       }
+
+      // 기존 이미지 + 새로 업로드한 이미지 합치기
+      const allImages = [...existingImages, ...uploadedUrls];
 
       const payload = {
         ...data,
-        images: finalImage ? [finalImage] : [],
+        images: allImages,
       };
 
       if (isEdit && product) {
-        // 수정
         await updateDocById("products", product.id, payload);
         toast.success("Product updated!");
       } else {
-        // 신규 등록
         await createDoc("products", payload);
         toast.success("Product added!");
       }
@@ -187,8 +182,8 @@ export default function ProductForm({ product, prefill }: Props) {
         remove={remove}
       />
       <ImageSection
-        existingImage={existingImage}
-        newImagePreview={newImagePreview}
+        existingImages={existingImages}
+        newImagePreviews={newImagePreviews}
         onImageSelect={handleImageSelect}
         onRemoveExisting={handleRemoveExisting}
         onRemoveNew={handleRemoveNew}
