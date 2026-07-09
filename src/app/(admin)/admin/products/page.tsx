@@ -6,12 +6,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { doc, updateDoc } from "firebase/firestore";
 import { orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import { Product, ProductStatus } from "@/types";
 import { useCollection } from "@/hooks/useFirestore";
-import { Plus, Edit2, Eye, EyeOff, Search } from "lucide-react";
+import { Plus, Edit2, Eye, EyeOff, Search, Trash2 } from "lucide-react";
 import PageSkeleton from "@/components/shared/PageSkeleton";
 import toast from "react-hot-toast";
+import { deleteDocById } from "@/lib/firestore-crud";
+import { deleteObject, ref } from "firebase/storage";
 
 const STATUS_BADGE: Record<ProductStatus, string> = {
   active: "bg-green-100 text-green-700",
@@ -57,6 +59,45 @@ export default function AdminProductsPage() {
       [product.id]: { status: nextStatus },
     }));
     toast.success(`Product ${nextStatus === "active" ? "visible" : "hidden"}.`);
+  };
+
+  const deleteProduct = async (product: Product) => {
+    if (
+      !confirm(
+        `"${product.name}" 상품을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`,
+      )
+    )
+      return;
+
+    try {
+      // Storage 이미지 삭제
+      await Promise.all(
+        product.images.map(async (url) => {
+          try {
+            if (url.startsWith("https://firebasestorage")) {
+              await deleteObject(ref(storage, url));
+            }
+          } catch {
+            // 이미지 없어도 무시
+          }
+        }),
+      );
+
+      // Firestore 문서 삭제
+      await deleteDocById("products", product.id);
+
+      // 로컬 상태에서도 제거
+      setOverrides((prev) => {
+        const next = { ...prev };
+        delete next[product.id];
+        return next;
+      });
+
+      toast.success("Product deleted.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete product.");
+    }
   };
 
   return (
@@ -178,6 +219,7 @@ export default function AdminProductsPage() {
                   {/* 액션 */}
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
+                      {/* 노출/숨김 */}
                       <button
                         onClick={() => toggleStatus(product)}
                         className="p-1.5 text-gray-400 hover:text-primary transition-colors"
@@ -193,6 +235,8 @@ export default function AdminProductsPage() {
                           <EyeOff size={15} />
                         )}
                       </button>
+
+                      {/* 수정 */}
                       <Link
                         href={`/admin/products/${product.id}/edit`}
                         className="p-1.5 text-gray-400 hover:text-primary transition-colors"
@@ -200,6 +244,15 @@ export default function AdminProductsPage() {
                       >
                         <Edit2 size={15} />
                       </Link>
+
+                      {/* 삭제 */}
+                      <button
+                        onClick={() => deleteProduct(product)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Delete product"
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     </div>
                   </td>
                 </tr>

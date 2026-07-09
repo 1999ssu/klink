@@ -8,10 +8,9 @@ import { CartItem, Product } from "@/types";
 import {
   fetchSubCollection,
   setSubDoc,
-  updateDocById,
   deleteSubDoc,
 } from "@/lib/firestore-crud";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
@@ -20,7 +19,7 @@ export function useCart() {
   const { user } = useAuthStore();
   const { items, setItems } = useCartStore();
 
-  // 카트 불러오기
+  // 카트 불러오기 — productId로 최신 상품 정보 fetch
   useEffect(() => {
     if (!user) {
       setItems([]);
@@ -28,14 +27,58 @@ export function useCart() {
     }
 
     const fetchCart = async () => {
-      const data = await fetchSubCollection<CartItem>("cart", user.id, "items");
-      setItems(data);
+      try {
+        // 1. 카트 아이템 목록 (id, productId, size, quantity만 저장됨)
+        const cartDocs = await fetchSubCollection<{
+          id: string;
+          productId: string;
+          size: string;
+          quantity: number;
+        }>("cart", user.id, "items");
+
+        if (cartDocs.length === 0) {
+          setItems([]);
+          return;
+        }
+
+        // 2. productId로 최신 상품 정보 fetch
+        const productSnapshots = await Promise.all(
+          cartDocs.map((item) => getDoc(doc(db, "products", item.productId))),
+        );
+
+        // 3. 카트 아이템 + 최신 상품 정보 합치기
+        const cartItems: CartItem[] = cartDocs
+          .map((item, i) => {
+            const productSnap = productSnapshots[i];
+            if (!productSnap.exists()) return null; // 삭제된 상품 제외
+
+            const product = {
+              id: productSnap.id,
+              ...productSnap.data(),
+              createdAt: productSnap.data().createdAt?.toDate(),
+              updatedAt: productSnap.data().updatedAt?.toDate(),
+            } as Product;
+
+            return {
+              id: item.id,
+              productId: item.productId,
+              product, // 항상 최신 상품 정보
+              size: item.size,
+              quantity: item.quantity,
+            };
+          })
+          .filter(Boolean) as CartItem[];
+
+        setItems(cartItems);
+      } catch (err) {
+        console.error("Failed to fetch cart:", err);
+      }
     };
 
     fetchCart();
   }, [user, setItems]);
 
-  // 카트 추가
+  // 카트 추가 — productId, size, quantity만 저장
   const addToCart = async (product: Product, size: string, quantity = 1) => {
     if (!user) {
       toast.error("Please sign in to add items to cart.");
@@ -58,20 +101,17 @@ export function useCart() {
         ),
       );
     } else {
-      const newItem: CartItem = {
-        id: uuidv4(),
+      const newId = uuidv4();
+      // productId, size, quantity만 저장 (product 객체 X)
+      await setSubDoc("cart", user.id, "items", newId, {
         productId: product.id,
-        product,
-        size,
-        quantity,
-      };
-      await setSubDoc("cart", user.id, "items", newItem.id, {
-        productId: product.id,
-        product,
         size,
         quantity,
       });
-      setItems([...items, newItem]);
+      setItems([
+        ...items,
+        { id: newId, productId: product.id, product, size, quantity },
+      ]);
     }
 
     toast.success("Added to cart!");

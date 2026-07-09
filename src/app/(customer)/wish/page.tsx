@@ -2,28 +2,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  deleteDoc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuthStore } from "@/store/authStore";
-import { useCart } from "@/hooks/useCart";
 import { Product } from "@/types";
+import { isProductAvailable, getUnavailableReason } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
-import { Trash2, ShoppingCart } from "lucide-react";
+import { Trash2, ShoppingCart, AlertCircle } from "lucide-react";
 import ProtectedRoute from "@/components/shared/ProtectedRoute";
-import toast from "react-hot-toast";
+import Checkbox from "@/components/shared/Checkbox";
 import PageSkeleton from "@/components/shared/PageSkeleton";
 import EmptyState from "@/components/shared/EmptyState";
-import Checkbox from "@/components/shared/Checkbox";
+import toast from "react-hot-toast";
 
-// Firestore wishlist 문서 타입
+// Firestore에 저장된 위시 문서 타입 (productId만 있음)
 interface WishDoc {
-  id: string; // doc id = productId
+  id: string;
   productId: string;
-  productName: string;
-  brand: string;
-  price: number;
-  image: string;
+}
+
+// 실제 렌더링에 쓸 타입 (최신 상품 정보 포함)
+interface WishItem {
+  wishId: string;
+  productId: string;
+  product: Product;
 }
 
 export default function WishPage() {
@@ -36,96 +45,115 @@ export default function WishPage() {
 
 function WishContent() {
   const { user } = useAuthStore();
-  const { addToCart } = useCart();
-
-  const [items, setItems] = useState<WishDoc[]>([]);
+  const [items, setItems] = useState<WishItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // 위시리스트 불러오기
+  // 위시리스트 + 최신 상품 정보 fetch
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
 
-    const fetch = async () => {
-      const snapshot = await getDocs(
-        collection(db, "wishlist", user.id, "items"),
-      );
-      if (cancelled) return;
-      setItems(
-        snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as WishDoc[],
-      );
-      setLoading(false);
+    const fetchWish = async () => {
+      try {
+        // 1. 위시 목록 (productId만 있음)
+        const snapshot = await getDocs(
+          collection(db, "wishlist", user.id, "items"),
+        );
+        const wishDocs = snapshot.docs.map((d) => ({
+          id: d.id,
+          productId: d.data().productId,
+        })) as WishDoc[];
+
+        if (wishDocs.length === 0) {
+          if (!cancelled) setItems([]);
+          return;
+        }
+
+        // 2. 최신 상품 정보 fetch
+        const productSnaps = await Promise.all(
+          wishDocs.map((w) => getDoc(doc(db, "products", w.productId))),
+        );
+
+        if (cancelled) return;
+
+        // 3. 합치기 (삭제된 상품 제외)
+        const wishItems: WishItem[] = wishDocs
+          .map((wish, i) => {
+            const snap = productSnaps[i];
+            if (!snap.exists()) return null;
+            return {
+              wishId: wish.id,
+              productId: wish.productId,
+              product: {
+                id: snap.id,
+                ...snap.data(),
+                createdAt: snap.data().createdAt?.toDate(),
+                updatedAt: snap.data().updatedAt?.toDate(),
+              } as Product,
+            };
+          })
+          .filter(Boolean) as WishItem[];
+
+        setItems(wishItems);
+      } catch (err) {
+        console.error("Failed to fetch wishlist:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
 
-    fetch();
+    fetchWish();
     return () => {
       cancelled = true;
     };
   }, [user]);
 
-  // 체크박스
-  const toggleSelect = (id: string) => {
+  const availableItems = items.filter((i) => isProductAvailable(i.product));
+
+  const toggleSelect = (wishId: string) => {
+    const item = items.find((i) => i.wishId === wishId);
+    if (!item || !isProductAvailable(item.product)) return;
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      next.has(wishId) ? next.delete(wishId) : next.add(wishId);
       return next;
     });
   };
 
   const toggleAll = () => {
-    setSelected(
-      selected.size === items.length
-        ? new Set()
-        : new Set(items.map((i) => i.id)),
-    );
+    const availableIds = availableItems.map((i) => i.wishId);
+    const allSelected = availableIds.every((id) => selected.has(id));
+    setSelected(allSelected ? new Set() : new Set(availableIds));
   };
 
-  // 단일 삭제
-  const removeOne = async (id: string) => {
+  const removeOne = async (wishId: string) => {
     if (!user) return;
-    await deleteDoc(doc(db, "wishlist", user.id, "items", id));
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    await deleteDoc(doc(db, "wishlist", user.id, "items", wishId));
+    setItems((prev) => prev.filter((i) => i.wishId !== wishId));
     setSelected((prev) => {
       const next = new Set(prev);
-      next.delete(id);
+      next.delete(wishId);
       return next;
     });
     toast.success("Removed from wishlist");
   };
 
-  // 선택 삭제 / 전체 삭제
   const removeSelected = async () => {
     if (!user || selected.size === 0) return;
     await Promise.all(
-      [...selected].map((id) =>
-        deleteDoc(doc(db, "wishlist", user.id, "items", id)),
+      [...selected].map((wishId) =>
+        deleteDoc(doc(db, "wishlist", user.id, "items", wishId)),
       ),
     );
-    setItems((prev) => prev.filter((i) => !selected.has(i.id)));
+    setItems((prev) => prev.filter((i) => !selected.has(i.wishId)));
     setSelected(new Set());
     toast.success("Removed selected items");
   };
 
-  // 단일 카트 이동
-  const moveOneToCart = async (item: WishDoc) => {
-    // 상품 최소 정보로 Product 타입 구성 (size는 상세 페이지에서 선택하도록 안내)
-    toast("Please select a size on the product page.", { icon: "ℹ️" });
-  };
-
-  // 선택 카트 이동 (사이즈 선택 필요하므로 상세 페이지로 안내)
-  const moveSelectedToCart = () => {
-    if (selected.size === 0) return;
-    toast(
-      "Please visit each product page to select a size before adding to cart.",
-      { icon: "ℹ️" },
-    );
-  };
-
-  // 선택 상품 총액
   const selectedTotal = items
-    .filter((i) => selected.has(i.id))
-    .reduce((sum, i) => sum + i.price, 0);
+    .filter((i) => selected.has(i.wishId) && isProductAvailable(i.product))
+    .reduce((sum, i) => sum + i.product.price, 0);
 
   if (loading) {
     return (
@@ -152,26 +180,17 @@ function WishContent() {
           {/* 전체 선택 + 일괄 액션 */}
           <div className="flex items-center justify-between mb-4 py-3 border-b border-gray-200">
             <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
-              <input
-                type="checkbox"
-                checked={selected.size === items.length && items.length > 0}
+              <Checkbox
+                checked={
+                  availableItems.length > 0 &&
+                  availableItems.every((i) => selected.has(i.wishId))
+                }
                 onChange={toggleAll}
-                className="accent-primary"
               />
-              Select All ({items.length})
+              Select All ({availableItems.length} available)
             </label>
 
             <div className="flex gap-2">
-              <button
-                onClick={moveSelectedToCart}
-                disabled={selected.size === 0}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-gray-300 
-                           hover:border-primary hover:text-primary transition-colors 
-                           disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ShoppingCart size={14} />
-                Move to Cart
-              </button>
               <button
                 onClick={removeSelected}
                 disabled={selected.size === 0}
@@ -185,79 +204,112 @@ function WishContent() {
             </div>
           </div>
 
-          {/* 위시리스트 아이템 */}
+          {/* 위시 아이템 */}
           <div className="space-y-3">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-4 p-4 bg-white border border-gray-200"
-              >
-                {/* 체크박스 */}
-                <Checkbox
-                  checked={selected.has(item.id)}
-                  onChange={() => toggleSelect(item.id)}
-                />
+            {items.map((item) => {
+              const available = isProductAvailable(item.product);
+              const reason = getUnavailableReason(item.product);
 
-                {/* 이미지 */}
-                <Link
-                  href={`/products/${item.productId}`}
-                  className="flex-shrink-0"
+              return (
+                <div
+                  key={item.wishId}
+                  className={`flex items-center gap-4 p-4 border
+                    ${
+                      available
+                        ? "bg-white border-gray-200"
+                        : "bg-gray-50 border-gray-200 opacity-70"
+                    }`}
                 >
-                  <div className="relative w-16 h-20 bg-gray-100">
-                    {item.image ? (
-                      <Image
-                        src={item.image}
-                        alt={item.productName}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
-                        No Img
+                  <Checkbox
+                    checked={selected.has(item.wishId)}
+                    onChange={() => toggleSelect(item.wishId)}
+                    className={
+                      !available ? "cursor-not-allowed opacity-30" : ""
+                    }
+                  />
+
+                  <Link
+                    href={`/products/${item.productId}`}
+                    className="flex-shrink-0"
+                  >
+                    <div className="relative w-16 h-20 bg-gray-100">
+                      {item.product.images[0] ? (
+                        <Image
+                          src={item.product.images[0]}
+                          alt={item.product.name}
+                          fill
+                          className={`object-cover ${!available ? "grayscale" : ""}`}
+                        />
+                      ) : (
+                        <div
+                          className="w-full h-full flex items-center justify-center 
+                                        text-gray-300 text-xs"
+                        >
+                          No Img
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-400 uppercase tracking-wider">
+                      {item.product.brand}
+                    </p>
+                    <Link href={`/products/${item.productId}`}>
+                      <p
+                        className={`text-sm font-medium line-clamp-2 mt-0.5 transition-colors
+                        ${
+                          available
+                            ? "text-gray-800 hover:text-primary"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {item.product.name}
+                      </p>
+                    </Link>
+                    <p
+                      className={`text-sm font-semibold mt-1
+                      ${available ? "text-gray-900" : "text-gray-400 line-through"}`}
+                    >
+                      ${item.product.price.toFixed(2)} CAD
+                    </p>
+
+                    {/* 비활성 사유 */}
+                    {!available && reason && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <AlertCircle
+                          size={12}
+                          className="text-red-400 flex-shrink-0"
+                        />
+                        <p className="text-xs text-red-500">{reason}</p>
                       </div>
                     )}
                   </div>
-                </Link>
 
-                {/* 상품 정보 */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-400 uppercase tracking-wider">
-                    {item.brand}
-                  </p>
-                  <Link href={`/products/${item.productId}`}>
-                    <p
-                      className="text-sm font-medium text-gray-800 hover:text-primary 
-                                  transition-colors line-clamp-2 mt-0.5"
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Link
+                      href={`/products/${item.productId}`}
+                      className={`p-2 border transition-colors
+                        ${
+                          available
+                            ? "border-gray-300 text-gray-500 hover:border-primary hover:text-primary"
+                            : "border-gray-200 text-gray-300 cursor-not-allowed pointer-events-none"
+                        }`}
+                      title="Go to product"
                     >
-                      {item.productName}
-                    </p>
-                  </Link>
-                  <p className="text-sm font-semibold text-gray-900 mt-1">
-                    ${item.price.toFixed(2)} CAD
-                  </p>
+                      <ShoppingCart size={15} />
+                    </Link>
+                    <button
+                      onClick={() => removeOne(item.wishId)}
+                      className="p-2 border border-gray-300 text-gray-500 
+                                 hover:border-red-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
-
-                {/* 개별 액션 버튼 */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Link
-                    href={`/products/${item.productId}`}
-                    className="p-2 border border-gray-300 text-gray-500 hover:border-primary 
-                               hover:text-primary transition-colors"
-                    title="Go to product to add to cart"
-                  >
-                    <ShoppingCart size={15} />
-                  </Link>
-                  <button
-                    onClick={() => removeOne(item.id)}
-                    className="p-2 border border-gray-300 text-gray-500 hover:border-red-400 
-                               hover:text-red-500 transition-colors"
-                    title="Remove from wishlist"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* 하단 총액 */}

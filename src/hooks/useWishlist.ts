@@ -13,7 +13,6 @@ export function useWishlist(productId: string) {
   const { user } = useAuthStore();
   const [isWished, setIsWished] = useState(false);
 
-  // 위시 여부 확인
   useEffect(() => {
     if (!user) return;
     const checkWish = async () => {
@@ -24,7 +23,6 @@ export function useWishlist(productId: string) {
     checkWish();
   }, [user, productId]);
 
-  // 위시 토글
   const toggleWish = async (product: Product) => {
     if (!user) return;
 
@@ -33,12 +31,9 @@ export function useWishlist(productId: string) {
       setIsWished(false);
       toast.success("Removed from wishlist");
     } else {
+      // productId만 저장 (상품 정보 스냅샷 X)
       await setSubDoc("wishlist", user.id, "items", productId, {
         productId,
-        productName: product.name,
-        brand: product.brand,
-        price: product.price,
-        image: product.images[0] ?? "",
       });
       setIsWished(true);
       toast.success("Added to wishlist ♥");

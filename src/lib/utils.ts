@@ -3,6 +3,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format } from "date-fns";
+import { Product } from "@/types";
 
 // Tailwind 클래스 병합
 export function cn(...inputs: ClassValue[]) {
@@ -57,4 +58,27 @@ export function convertTimestamps<T extends WithTimestamps>(data: T): T {
 // 가격 포맷 (CAD 기준)
 export function formatPrice(price: number) {
   return `$${price.toFixed(2)} CAD`;
+}
+
+// 상품이 구매 가능한 상태인지 확인
+export function isProductAvailable(product: Product, size?: string): boolean {
+  if (product.status === "hidden") return false;
+  if (product.status === "sold_out") return false;
+  if (size) {
+    const sizeInfo = product.sizes.find((s) => s.label === size);
+    if (!sizeInfo || sizeInfo.stock === 0) return false;
+  }
+  return true;
+}
+
+// 상품 비활성화 사유 텍스트
+export function getUnavailableReason(product: Product, size?: string): string {
+  if (product.status === "hidden") return "This item is no longer available.";
+  if (product.status === "sold_out") return "This item is sold out.";
+  if (size) {
+    const sizeInfo = product.sizes.find((s) => s.label === size);
+    if (!sizeInfo || sizeInfo.stock === 0)
+      return "Selected size is out of stock.";
+  }
+  return "";
 }
