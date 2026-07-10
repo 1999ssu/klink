@@ -32,42 +32,59 @@ export async function POST(req: NextRequest) {
     const itemIdList = itemIds.split(",");
 
     try {
-      // 카트 아이템 조회
+      // 1. 카트 아이템 조회
       const cartSnap = await adminDb
         .collection("cart")
         .doc(userId)
         .collection("items")
         .get();
 
-      const purchasedItems = cartSnap.docs
-        .filter((doc) => itemIdList.includes(doc.id))
-        .map((doc) => doc.data());
+      const purchasedCartItems = cartSnap.docs.filter((doc) =>
+        itemIdList.includes(doc.id),
+      );
 
-      // 유저 정보 조회
+      // 2. productId로 최신 상품 정보 조회
+      const productSnapshots = await Promise.all(
+        purchasedCartItems.map((item) =>
+          adminDb.collection("products").doc(item.data().productId).get(),
+        ),
+      );
+
+      // 3. 유저 정보 조회
       const userDoc = await adminDb.collection("users").doc(userId).get();
       const userData = userDoc.data()!;
 
-      // 금액 계산 (중복 제거)
-      const breakdown = calculateBreakdown(
-        purchasedItems.map((item) => ({
-          price: item.product.price,
-          quantity: item.quantity,
-        })),
-      );
+      // 4. 금액 계산
+      const itemsForCalculation = purchasedCartItems
+        .map((item, i) => {
+          const productSnap = productSnapshots[i];
+          if (!productSnap.exists) return null;
+          return {
+            price: productSnap.data()!.price as number,
+            quantity: item.data().quantity as number,
+          };
+        })
+        .filter(Boolean) as { price: number; quantity: number }[];
 
-      // Firestore에 주문 생성
+      const breakdown = calculateBreakdown(itemsForCalculation);
+
+      // 5. 주문 생성
       await adminDb.collection("orders").add({
         userId,
         userEmail: userData.email,
-        items: purchasedItems.map((item) => ({
-          productId: item.productId,
-          productName: item.product.name,
-          brand: item.product.brand,
-          image: item.product.images?.[0] ?? "",
-          size: item.size,
-          quantity: item.quantity,
-          price: item.product.price,
-        })),
+        items: purchasedCartItems.map((item, i) => {
+          const productSnap = productSnapshots[i];
+          const productData = productSnap.data()!;
+          return {
+            productId: item.data().productId,
+            productName: productData.name,
+            brand: productData.brand,
+            image: productData.images?.[0] ?? "",
+            size: item.data().size,
+            quantity: item.data().quantity,
+            price: productData.price,
+          };
+        }),
         shippingAddress:
           userData.addresses?.find(
             (a: { isDefault: boolean }) => a.isDefault,
@@ -79,11 +96,9 @@ export async function POST(req: NextRequest) {
         updatedAt: FieldValue.serverTimestamp(),
       });
 
-      // 결제된 카트 아이템 삭제
+      // 6. 결제된 카트 아이템 삭제
       const batch = adminDb.batch();
-      cartSnap.docs
-        .filter((doc) => itemIdList.includes(doc.id))
-        .forEach((doc) => batch.delete(doc.ref));
+      purchasedCartItems.forEach((doc) => batch.delete(doc.ref));
       await batch.commit();
     } catch (err) {
       console.error("Order creation failed:", err);

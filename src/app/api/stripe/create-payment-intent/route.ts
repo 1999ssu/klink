@@ -28,16 +28,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Firestore에서 카트 아이템 조회
+    // 1. 카트 아이템 조회 (productId, size, quantity만 저장됨)
     const cartSnap = await adminDb
       .collection("cart")
       .doc(userId)
       .collection("items")
       .get();
 
-    const cartItems = cartSnap.docs
-      .filter((doc) => itemIds.includes(doc.id))
-      .map((doc) => doc.data());
+    const cartItems = cartSnap.docs.filter((doc) => itemIds.includes(doc.id));
 
     if (cartItems.length === 0) {
       return NextResponse.json(
@@ -46,15 +44,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 금액 계산 (중복 제거)
-    const breakdown = calculateBreakdown(
-      cartItems.map((item) => ({
-        price: item.product.price,
-        quantity: item.quantity,
-      })),
+    // 2. productId로 실제 상품 가격 조회
+    const productSnapshots = await Promise.all(
+      cartItems.map((item) =>
+        adminDb.collection("products").doc(item.data().productId).get(),
+      ),
     );
 
-    // Stripe PaymentIntent 생성
+    // 3. 가격 + 수량 조합
+    const itemsForCalculation = cartItems
+      .map((item, i) => {
+        const productSnap = productSnapshots[i];
+        if (!productSnap.exists) return null;
+        return {
+          price: productSnap.data()!.price as number,
+          quantity: item.data().quantity as number,
+        };
+      })
+      .filter(Boolean) as { price: number; quantity: number }[];
+
+    if (itemsForCalculation.length === 0) {
+      return NextResponse.json(
+        { error: "Products not found" },
+        { status: 400 },
+      );
+    }
+
+    // 4. 금액 계산
+    const breakdown = calculateBreakdown(itemsForCalculation);
+
+    // 5. Stripe PaymentIntent 생성
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(breakdown.total * 100),
       currency: "cad",
